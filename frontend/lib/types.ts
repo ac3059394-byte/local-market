@@ -84,5 +84,5 @@ export interface Category {
 export interface Paginated<T> {
   success: boolean;
   data: T[];
-  pagination: { page: number; limit: number; total: number; totalPages: number };
+  pagination: { page?: number; limit?: number; total: number; totalPages?: number };
 }
