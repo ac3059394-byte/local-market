@@ -19,6 +19,7 @@ const categoryRoutes = require("./routes/category.routes");
 const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
+app.set("trust proxy", 1);
 
 // ---------- Security & core middleware ----------
 app.use(helmet());
