@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-sand-50 text-ink-900 font-body;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display;
+  }
+  /* Visible keyboard focus everywhere — accessibility floor */
+  :focus-visible {
+    outline: 2px solid theme("colors.marigold.500");
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-marigold-500 px-5 py-2.5 font-semibold text-ink-900 shadow-card transition hover:bg-marigold-400 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-indigo-700/15 bg-white px-5 py-2.5 font-semibold text-indigo-700 transition hover:bg-indigo-50;
+  }
+  .card {
+    @apply rounded-2xl bg-white shadow-card transition hover:shadow-card-hover;
+  }
+  .input {
+    @apply w-full rounded-xl border border-sand-200 bg-white px-4 py-2.5 text-ink-900 placeholder:text-ink-400 focus:border-indigo-400 focus:outline-none;
+  }
+  .badge-verified {
+    @apply inline-flex items-center gap-1 rounded-full bg-mint-50 px-2.5 py-1 text-xs font-semibold text-mint-600;
+  }
+  .badge-out-of-stock {
+    @apply inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-500;
+  }
+}

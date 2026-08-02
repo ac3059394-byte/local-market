@@ -1,0 +1,278 @@
+// ============================================================
+// Local Market Platform — Database Schema (PostgreSQL + Prisma)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------
+// Enums
+// ------------------------------------------------------------
+
+enum Role {
+  CUSTOMER
+  SHOP_OWNER
+  ADMIN
+}
+
+enum ProductStatus {
+  IN_STOCK
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+}
+
+enum MembershipTier {
+  FREE
+  PREMIUM
+}
+
+// ------------------------------------------------------------
+// Users
+// ------------------------------------------------------------
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String?   @unique
+  phone         String?   @unique
+  passwordHash  String?
+  role          Role      @default(CUSTOMER)
+  avatarUrl     String?
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  shops         Shop[]
+  reviews       Review[]
+  favorites     Favorite[]
+  reports       Report[]
+  notifications Notification[]
+  inquiries     Inquiry[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+// ------------------------------------------------------------
+// Shops
+// ------------------------------------------------------------
+
+model Shop {
+  id              String    @id @default(uuid())
+  ownerId         String
+  owner           User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name            String
+  ownerName       String
+  gstNumber       String?
+  mobileNumber    String
+  whatsappNumber  String?
+  email           String?
+
+  addressLine     String
+  pincode         String
+  state           String
+  district        String
+  city            String
+  latitude        Float
+  longitude       Float
+  googleMapsUrl   String?
+
+  logoUrl         String?
+  bannerUrl       String?
+  photos          String[]  @default([])
+
+  openingTime     String?   // e.g. "09:00"
+  closingTime     String?   // e.g. "21:00"
+  weeklyHoliday   String?   // e.g. "Sunday"
+
+  description     String?
+  isVerified      Boolean   @default(false)
+  isFeatured      Boolean   @default(false)
+  membershipTier  MembershipTier @default(FREE)
+
+  averageRating   Float     @default(0)
+  reviewCount     Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  categories      ShopCategory[]
+  products        Product[]
+  reviews         Review[]
+  favorites       Favorite[]
+  reports         Report[]
+  inquiries       Inquiry[]
+
+  @@index([city, state])
+  @@index([pincode])
+  @@index([latitude, longitude])
+}
+
+// ------------------------------------------------------------
+// Categories (shared by shops and products)
+// ------------------------------------------------------------
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  iconUrl     String?
+  parentId    String?
+  parent      Category? @relation("CategoryToSubcategory", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToSubcategory")
+
+  shops       ShopCategory[]
+  products    Product[]
+}
+
+model ShopCategory {
+  shopId     String
+  categoryId String
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([shopId, categoryId])
+}
+
+// ------------------------------------------------------------
+// Products
+// ------------------------------------------------------------
+
+model Product {
+  id                String        @id @default(uuid())
+  shopId            String
+  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  categoryId        String?
+  category          Category?     @relation(fields: [categoryId], references: [id])
+
+  name              String
+  description       String?
+  images            String[]      @default([])
+  brand             String?
+  model             String?
+  sku               String?
+  barcode           String?
+
+  sellingPrice      Decimal       @db.Decimal(10, 2)
+  mrp               Decimal?      @db.Decimal(10, 2)
+  discountPercent   Float?        @default(0)
+
+  quantity          Int           @default(0)
+  unit              String        @default("pcs") // pcs, kg, litre, etc.
+
+  status            ProductStatus @default(IN_STOCK)
+  deliveryAvailable Boolean       @default(false)
+  pickupAvailable   Boolean       @default(true)
+
+  isApproved        Boolean       @default(true) // admin moderation
+  viewCount         Int           @default(0)
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  favorites         Favorite[]
+  reports           Report[]
+
+  @@index([shopId])
+  @@index([categoryId])
+  @@index([name])
+  @@index([sku])
+}
+
+// ------------------------------------------------------------
+// Reviews
+// ------------------------------------------------------------
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  rating    Int      // 1-5
+  comment   String?
+  photos    String[] @default([])
+  likeCount Int      @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([shopId])
+  @@unique([userId, shopId]) // one review per user per shop
+}
+
+// ------------------------------------------------------------
+// Favorites (wishlist for shops & products)
+// ------------------------------------------------------------
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopId    String?
+  shop      Shop?    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, shopId, productId])
+}
+
+// ------------------------------------------------------------
+// Reports (fake listing / abuse reports)
+// ------------------------------------------------------------
+
+model Report {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopId    String?
+  shop      Shop?        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product?     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  reason    String
+  status    ReportStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+}
+
+// ------------------------------------------------------------
+// Inquiries (customer -> shop contact / order interest)
+// ------------------------------------------------------------
+
+model Inquiry {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  message   String
+  createdAt DateTime @default(now())
+}
+
+// ------------------------------------------------------------
+// Notifications
+// ------------------------------------------------------------
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
